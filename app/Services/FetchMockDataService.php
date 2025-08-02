@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Hash;
 
 class FetchMockDataService
 {
@@ -17,7 +18,7 @@ class FetchMockDataService
                 $response->throw();
             }
 
-            $this->saveToDb($response);
+            $this->saveToDb($response->json());
 
         } catch (\Throwable|\Exception $e) {
             response('Error on Data Importer Class');
@@ -29,13 +30,12 @@ class FetchMockDataService
     {
         foreach ($respData as $resp) {
 
-            $inputEmail = $resp['email'];
-
-            $userQuery = User::updateOrCreate(
-                ['email' => $inputEmail],
+            User::updateOrCreate(
+                ['email' => $resp['email']],
                 [
                     'name' => $resp['name'],
                     'username' => $resp['username'],
+                    'password' => Hash::make('password'),
                     'address' => $resp['address'],
                     'phone' => $resp['phone'],
                     'website' => $resp['website'],
