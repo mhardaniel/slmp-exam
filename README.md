@@ -19,7 +19,7 @@
 4. ```cp .env.example .env```
 5. ```php artisan key:generate```
 6. ```./vendor/bin/sail up -d```
-7. ```php artisan migrate --seed```
+7. ```sail artisan migrate --seed```
 8. you can access the api routes at: http://localhost:8000
 
 ## API Routes
