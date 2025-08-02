@@ -27,7 +27,6 @@ class FetchMockDataService
 
     private function saveToDb($respData): void
     {
-        var_dump($respData);
         foreach ($respData as $resp) {
 
             $inputEmail = $resp['email'];
