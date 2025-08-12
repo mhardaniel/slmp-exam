@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Post;
 use App\Models\User;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 
 class FetchMockDataService
 {
@@ -12,13 +14,21 @@ class FetchMockDataService
     {
         try {
 
-            $response = Http::get(config('mock-api.url'));
+            $responses = Http::pool(fn (Pool $pool) => [
+                $pool->get(config('mock-api.url').'/users?_limit=10'),
+                $pool->get(config('mock-api.url').'/posts?_limit=10'),
+                $pool->get(config('mock-api.url').'/comments?_limit=10'),
+            ]);
 
-            if ($response->failed()) {
-                $response->throw();
+            foreach ($responses as $resp) {
+                if ($resp->failed()) {
+                    $resp->throw();
+                }
             }
 
-            $this->saveToDb($response->json());
+            $this->saveToDbUsers($responses[0]->json());
+            $this->saveToDbPosts($responses[1]->json());
+            $this->saveToDbComments($responses[2]->json());
 
         } catch (\Throwable|\Exception $e) {
             response('Error on Data Importer Class');
@@ -26,7 +36,7 @@ class FetchMockDataService
 
     }
 
-    private function saveToDb($respData): void
+    private function saveToDbUsers(array $respData): void
     {
         foreach ($respData as $resp) {
 
@@ -43,6 +53,36 @@ class FetchMockDataService
                 ]
             );
 
+        }
+
+    }
+
+    private function saveToDbPosts(array $respData): void
+    {
+        foreach ($respData as $resp) {
+
+            $user = User::find($resp['userId']);
+
+            $post = $user->posts()->create([
+                'title' => $resp['title'],
+                'body' => $resp['body'],
+            ]);
+
+        }
+
+    }
+
+    private function saveToDbComments(array $respData): void
+    {
+        foreach ($respData as $resp) {
+
+            $post = Post::find($resp['postId']);
+
+            $comment = $post->comments()->create([
+                'name' => $resp['name'],
+                'email' => $resp['email'],
+                'body' => $resp['body'],
+            ]);
         }
 
     }

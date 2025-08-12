@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreUserRequest;
-use App\Http\Requests\UpdateUserRequest;
+use App\Http\Requests\StorePostRequest;
+use App\Http\Requests\UpdatePostRequest;
+use App\Http\Resources\CommentResource;
 use App\Http\Resources\PostResource;
-use App\Http\Resources\UserResource;
+use App\Models\Post;
 use App\Models\User;
 use App\Services\HandleGeneralErrorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Symfony\Component\HttpFoundation\Response;
 
-class UserController extends Controller
+class PostController extends Controller
 {
     protected $handleGeneralErrorService;
 
@@ -23,47 +25,60 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResource|UserResource
+    public function index(): JsonResponse|JsonResource
     {
         try {
-            return UserResource::collection(User::all());
+            return PostResource::collection(Post::with('user')->get());
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
         }
+
     }
 
     /**
      * Display a listing of the resource.
      */
-    public function userPosts(User $user): JsonResponse|JsonResource
+    public function postComments(Post $post): JsonResponse|JsonResource
     {
-        return PostResource::collection($user->posts);
+        return CommentResource::collection($post->comments);
+
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreUserRequest $request): JsonResource|UserResource
+    public function store(StorePostRequest $request): JsonResponse|PostResource
     {
         try {
             $validated = $request->validated();
 
-            $user = User::create($validated);
+            $user = User::find($request->input('user_id'));
 
-            return new UserResource($user);
+            if (! $user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found',
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            $post = $user->posts()->create($validated);
+
+            return new PostResource($post);
 
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
         }
+
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(User $user): JsonResource|UserResource
+    public function show(Post $post): JsonResponse|PostResource
     {
         try {
-            return new UserResource($user);
+
+            return new PostResource($post);
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
         }
@@ -72,27 +87,28 @@ class UserController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateUserRequest $request, User $user): JsonResource|UserResource
+    public function update(UpdatePostRequest $request, Post $post): JsonResponse|PostResource
     {
         try {
             $validated = $request->validated();
 
-            $user->update($validated);
+            $post->update($validated);
 
-            return new UserResource($user);
+            return new PostResource($post);
 
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
         }
+
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(User $user): JsonResponse
+    public function destroy(Post $post): JsonResponse
     {
         try {
-            $user->delete();
+            $post->delete();
 
             return response()->json([
                 'success' => true,
@@ -101,5 +117,6 @@ class UserController extends Controller
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
         }
+
     }
 }

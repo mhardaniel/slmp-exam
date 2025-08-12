@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreUserRequest;
-use App\Http\Requests\UpdateUserRequest;
-use App\Http\Resources\PostResource;
-use App\Http\Resources\UserResource;
-use App\Models\User;
+use App\Http\Requests\StoreCommentRequest;
+use App\Http\Requests\UpdateCommentRequest;
+use App\Http\Resources\CommentResource;
+use App\Models\Comment;
+use App\Models\Post;
 use App\Services\HandleGeneralErrorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Symfony\Component\HttpFoundation\Response;
 
-class UserController extends Controller
+class CommentController extends Controller
 {
     protected $handleGeneralErrorService;
 
@@ -23,76 +24,83 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResource|UserResource
+    public function index(): JsonResource|CommentResource
     {
         try {
-            return UserResource::collection(User::all());
+            return CommentResource::collection(Comment::with('post.user')->get());
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
         }
-    }
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function userPosts(User $user): JsonResponse|JsonResource
-    {
-        return PostResource::collection($user->posts);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreUserRequest $request): JsonResource|UserResource
+    public function store(StoreCommentRequest $request): CommentResource|JsonResponse
     {
         try {
             $validated = $request->validated();
 
-            $user = User::create($validated);
+            $post = Post::find($request->input('post_id'));
 
-            return new UserResource($user);
+            if (! post) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Post not found',
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            $comment = $post->comments()->create($validated);
+
+            return new CommentResource($comment);
 
         } catch (\Throwable $th) {
+
             return $this->handleGeneralErrorService->log($th);
         }
+
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(User $user): JsonResource|UserResource
+    public function show(Comment $comment): JsonResource|CommentResource
     {
         try {
-            return new UserResource($user);
+            return new CommentResource($comment);
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
+
         }
+
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateUserRequest $request, User $user): JsonResource|UserResource
+    public function update(UpdateCommentRequest $request, Comment $comment): JsonResource|CommentResource
     {
         try {
             $validated = $request->validated();
 
-            $user->update($validated);
+            $comment->update($validated);
 
-            return new UserResource($user);
+            return new CommentResource($comment);
 
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
         }
+
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(User $user): JsonResponse
+    public function destroy(Comment $comment): JsonResponse
     {
         try {
-            $user->delete();
+            $comment->delete();
 
             return response()->json([
                 'success' => true,
@@ -101,5 +109,6 @@ class UserController extends Controller
         } catch (\Throwable $th) {
             return $this->handleGeneralErrorService->log($th);
         }
+
     }
 }
